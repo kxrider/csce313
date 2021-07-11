@@ -9,21 +9,29 @@
 
 using namespace std;
 
+int getMicroSec(timeval t0, timeval t1) {
+	return (t1.tv_sec - t0.tv_sec)*1000000 + t1.tv_usec - t0.tv_usec;
+}
+
 
 int main(int argc, char *argv[]){
-    FIFORequestChannel chan ("control", FIFORequestChannel::CLIENT_SIDE);
+	FIFORequestChannel chan ("control", FIFORequestChannel::CLIENT_SIDE);
+	FIFORequestChannel* currChan = &chan;
 	
 	int opt;
 	int p = 1;
 	double t = 0.0;
 	int e = 1;
+	int m = MAX_MESSAGE;
 	bool psel = false;
 	bool tsel = false;
 	bool esel = false;
 	bool fsel = false;
+	bool csel = false;
+	bool msel = false;
 	
 	string filename = "";
-	while ((opt = getopt(argc, argv, "p:t:e:f:")) != -1) {
+	while ((opt = getopt(argc, argv, "p:t:e:f:cm:")) != -1) {
 		switch (opt) {
 			case 'p':
 				p = atoi (optarg);
@@ -41,28 +49,48 @@ int main(int argc, char *argv[]){
 				filename = optarg;
 				fsel = true;
 				break;
+			case 'c':
+				csel = true;
+				break;
+			case 'm':
+				msel = true;
+				m = atoi(optarg);
+				break;
+
 		}
 	}
 	
     // sending a non-sense message, you need to change this
     char buf [MAX_MESSAGE]; // 256
+
+	struct timeval t0;
+	struct timeval t1;
+	gettimeofday(&t0, NULL);
+	
+	MESSAGE_TYPE newChanmsg = NEWCHANNEL_MSG;
+	currChan->cwrite(&newChanmsg, sizeof(MESSAGE_TYPE));
+	char chanName[30];
+	currChan->cread(chanName, 30);
+	string channelName(chanName);
+	FIFORequestChannel extraChannel (channelName, FIFORequestChannel::CLIENT_SIDE);
+
+	if (csel)
+		currChan = &extraChannel;
+
     if (psel && !(esel || fsel || tsel)) {
 		ofstream fs("x1.csv");
 		int person = p;
 		int ecgnum = 1;
-		struct timeval t0;
-		struct timeval t1;
-		gettimeofday(&t0, NULL);
 		for (int i = 0; i < 1000; i++) {
 			double timept = 0.004*i;
 			datamsg ptmsg1 (person, timept, 1);
 			datamsg ptmsg2 (person, timept, 2);
 			double pt1;
 			double pt2;
-			chan.cwrite(&ptmsg1, sizeof (datamsg));
-			chan.cread(&pt1, sizeof(double));
-			chan.cwrite(&ptmsg2, sizeof (datamsg));
-			chan.cread(&pt2, sizeof(double));
+			currChan->cwrite(&ptmsg1, sizeof (datamsg));
+			currChan->cread(&pt1, sizeof(double));
+			currChan->cwrite(&ptmsg2, sizeof (datamsg));
+			currChan->cread(&pt2, sizeof(double));
 
 			if (!fs.is_open()) {
 				cout << "Something went wrong opening x1.csv" << endl;
@@ -72,14 +100,13 @@ int main(int argc, char *argv[]){
 
 			//cout << "(t, pt1, pt2): " << "(" << timept << "," << pt1 << "," << pt2 << ")" << endl;
 		}	
-		gettimeofday(&t1, NULL);
-		cout << "The transfer took " << (t1.tv_sec - t0.tv_sec)*1000000 + t1.tv_usec - t0.tv_usec << " microseconds." << endl;
+		//gettimeofday(&t1, NULL);
     } else if (psel && tsel && esel) {
 		datamsg x (p, t, e);
 	
-		chan.cwrite (&x, sizeof (datamsg)); // question
+		currChan->cwrite (&x, sizeof (datamsg)); // question
 		double reply;
-		int nbytes = chan.cread (&reply, sizeof(double)); //answer
+		int nbytes = currChan->cread (&reply, sizeof(double)); //answer
 		cout << "For person n" << p <<", at time " << t << ", the value of ecg "<< e <<" is " << reply << endl;
 	} else if (fsel) {
 		filemsg fmsg(0,0);
@@ -87,41 +114,44 @@ int main(int argc, char *argv[]){
 		char fbuffer[bufLen]; // fbuffer is our "packet." We will smash a filemsg and string into it.
 		memcpy(fbuffer, &fmsg, sizeof(filemsg));
 		strcpy(fbuffer + sizeof(filemsg), filename.c_str());
-		chan.cwrite(fbuffer, bufLen);
+		currChan->cwrite(fbuffer, bufLen);
 
 		// computing number of packets needed to transfer file
 		__int64_t fileSize;
-		int actualSize = MAX_MESSAGE-1;
-		chan.cread(&fileSize, sizeof(__int64_t));
+		int actualSize = m;
+		currChan->cread(&fileSize, sizeof(__int64_t));
 		__int64_t packetNo = ceil(fileSize/static_cast<double>(actualSize));
+		cout << "number of packets: " << packetNo << endl;
 
-		ofstream ofs("received/" + filename);
+		ofstream ofs("received/" + filename, std::ofstream::binary);
 		if (!ofs.is_open()) {
 			cout << "oof there was a problem" << endl;
 			return 1;
 		}
-
+		struct timeval t0;
+		struct timeval t1;
+		//gettimeofday(&t0, NULL);
 		for (__int64_t i = 0; i < packetNo-1; i++) { // iterate through first n-1 packets
 			char themsg[actualSize];
 			filemsg packetmsg(i*(actualSize), actualSize);
 			memcpy(fbuffer, &packetmsg, sizeof(filemsg));
 			strcpy(fbuffer + sizeof(filemsg), filename.c_str());
-			chan.cwrite(fbuffer, bufLen);
-			chan.cread(themsg, actualSize);
-			// cout << "themsg: " << themsg << endl;
-			ofs << themsg;
+			currChan->cwrite(fbuffer, bufLen);
+			currChan->cread(themsg, actualSize);
+			ofs.write(themsg, actualSize);
 		}
-		int theRest = fileSize - (packetNo-1)*actualSize;
+		__int64_t theRest = fileSize - (packetNo-1)*actualSize;
 		char finalMsg[theRest];
-		cout << "num: " << fileSize << endl;
 		filemsg finalPacket((packetNo-1)*actualSize, theRest);
 		memcpy(fbuffer, &finalPacket, sizeof(filemsg));
 		strcpy(fbuffer + sizeof(filemsg), filename.c_str());
-		chan.cwrite(fbuffer, bufLen);
-		chan.cread(finalMsg, theRest);
-		cout << finalMsg;
-		ofs << finalMsg;
+		currChan->cwrite(fbuffer, bufLen);
+		currChan->cread(finalMsg, theRest);
+		ofs.write(finalMsg, theRest);
 	}
+
+	gettimeofday(&t1, NULL);
+	cout << "Action took: " << getMicroSec(t0, t1) << " microseconds" << endl;
     
 	
 	
@@ -133,11 +163,11 @@ int main(int argc, char *argv[]){
 	char buf2 [len];
 	memcpy (buf2, &fm, sizeof (filemsg));
 	strcpy (buf2 + sizeof (filemsg), fname.c_str());
-	// cout << "buf2: " << buf2[0] << endl;
-	chan.cwrite (buf2, len);  // I want the file length;
+	currChan->cwrite (buf2, len);  // I want the file length;
 	
 	
 	// closing the channel    
-    MESSAGE_TYPE m = QUIT_MSG;
-    chan.cwrite (&m, sizeof (MESSAGE_TYPE));
+    MESSAGE_TYPE close = QUIT_MSG;
+    currChan->cwrite (&close, sizeof (MESSAGE_TYPE));
+	chan.cwrite (&close, sizeof(MESSAGE_TYPE));
 }
