@@ -67,15 +67,17 @@ int main(int argc, char *argv[]){
 	struct timeval t1;
 	gettimeofday(&t0, NULL);
 	
-	MESSAGE_TYPE newChanmsg = NEWCHANNEL_MSG;
-	currChan->cwrite(&newChanmsg, sizeof(MESSAGE_TYPE));
-	char chanName[30];
-	currChan->cread(chanName, 30);
-	string channelName(chanName);
-	FIFORequestChannel extraChannel (channelName, FIFORequestChannel::CLIENT_SIDE);
+	
 
-	if (csel)
+	if (csel) {
+		MESSAGE_TYPE newChanmsg = NEWCHANNEL_MSG;
+		currChan->cwrite(&newChanmsg, sizeof(MESSAGE_TYPE));
+		char chanName[30];
+		currChan->cread(chanName, 30);
+		string channelName(chanName);
+		static FIFORequestChannel extraChannel (channelName, FIFORequestChannel::CLIENT_SIDE); //static keeps it from going out of scope
 		currChan = &extraChannel;
+	}
 
     if (psel && !(esel || fsel || tsel)) {
 		ofstream fs("x1.csv");
@@ -115,10 +117,11 @@ int main(int argc, char *argv[]){
 		memcpy(fbuffer, &fmsg, sizeof(filemsg));
 		strcpy(fbuffer + sizeof(filemsg), filename.c_str());
 		currChan->cwrite(fbuffer, bufLen);
+		cout << "buffer length: " << bufLen << endl;
 
 		// computing number of packets needed to transfer file
 		__int64_t fileSize;
-		int actualSize = m;
+		__int64_t actualSize = m;
 		currChan->cread(&fileSize, sizeof(__int64_t));
 		__int64_t packetNo = ceil(fileSize/static_cast<double>(actualSize));
 		cout << "number of packets: " << packetNo << endl;
@@ -128,9 +131,7 @@ int main(int argc, char *argv[]){
 			cout << "oof there was a problem" << endl;
 			return 1;
 		}
-		struct timeval t0;
-		struct timeval t1;
-		//gettimeofday(&t0, NULL);
+		
 		for (__int64_t i = 0; i < packetNo-1; i++) { // iterate through first n-1 packets
 			char themsg[actualSize];
 			filemsg packetmsg(i*(actualSize), actualSize);
@@ -141,6 +142,8 @@ int main(int argc, char *argv[]){
 			ofs.write(themsg, actualSize);
 		}
 		__int64_t theRest = fileSize - (packetNo-1)*actualSize;
+		cout << "final transfer size: " << theRest << endl;
+		cout << "file size: " << fileSize << endl;
 		char finalMsg[theRest];
 		filemsg finalPacket((packetNo-1)*actualSize, theRest);
 		memcpy(fbuffer, &finalPacket, sizeof(filemsg));
@@ -168,6 +171,7 @@ int main(int argc, char *argv[]){
 	
 	// closing the channel    
     MESSAGE_TYPE close = QUIT_MSG;
-    currChan->cwrite (&close, sizeof (MESSAGE_TYPE));
 	chan.cwrite (&close, sizeof(MESSAGE_TYPE));
+    currChan->cwrite (&close, sizeof (MESSAGE_TYPE));
+	
 }
