@@ -109,7 +109,7 @@ int main(int argc, char *argv[]){
 		currChan->cwrite (&x, sizeof (datamsg)); // question
 		double reply;
 		int nbytes = currChan->cread (&reply, sizeof(double)); //answer
-		cout << "For person n" << p <<", at time " << t << ", the value of ecg "<< e <<" is " << reply << endl;
+		cout << "For person " << p <<", at time " << t << ", the value of ecg "<< e <<" is " << reply << endl;
 	} else if (fsel) {
 		filemsg fmsg(0,0);
 		int bufLen = sizeof(filemsg) + filename.size()+1;
@@ -117,7 +117,7 @@ int main(int argc, char *argv[]){
 		memcpy(fbuffer, &fmsg, sizeof(filemsg));
 		strcpy(fbuffer + sizeof(filemsg), filename.c_str());
 		currChan->cwrite(fbuffer, bufLen);
-		cout << "buffer length: " << bufLen << endl;
+		//cout << "buffer length: " << bufLen << endl;
 
 		// computing number of packets needed to transfer file
 		__int64_t fileSize;
@@ -142,7 +142,7 @@ int main(int argc, char *argv[]){
 			ofs.write(themsg, actualSize);
 		}
 		__int64_t theRest = fileSize - (packetNo-1)*actualSize;
-		cout << "final transfer size: " << theRest << endl;
+		//cout << "final transfer size: " << theRest << endl;
 		cout << "file size: " << fileSize << endl;
 		char finalMsg[theRest];
 		filemsg finalPacket((packetNo-1)*actualSize, theRest);
@@ -155,19 +155,6 @@ int main(int argc, char *argv[]){
 
 	gettimeofday(&t1, NULL);
 	cout << "Action took: " << getMicroSec(t0, t1) << " microseconds" << endl;
-    
-	
-	
-
-	filemsg fm (0,0);
-	string fname = "teslkansdlkjflasjdf.dat";
-	
-	int len = sizeof (filemsg) + fname.size()+1;
-	char buf2 [len];
-	memcpy (buf2, &fm, sizeof (filemsg));
-	strcpy (buf2 + sizeof (filemsg), fname.c_str());
-	currChan->cwrite (buf2, len);  // I want the file length;
-	
 	
 	// closing the channel    
     MESSAGE_TYPE close = QUIT_MSG;
