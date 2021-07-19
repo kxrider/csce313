@@ -2,6 +2,7 @@
 #include <string>
 #include <sys/wait.h>
 #include <unistd.h>
+#include "helpers.h"
 
 using namespace std;
 
@@ -14,6 +15,8 @@ int main(){
             cout << "Goodbye..." << endl;
             break;
         }
+        processCommand(inputline);
+        /*
         int pid = fork();
         if (pid == 0){// child process
             // preparing the input command for execution
@@ -21,7 +24,7 @@ int main(){
             execvp(args[0],args);
         } else {
             waitpid(pid, 0, 0); // parent waits for childprocess
-        }
+        }*/
     }
 
     return 0;
