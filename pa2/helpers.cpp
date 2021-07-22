@@ -3,40 +3,6 @@
 #include <iostream>
 
 using namespace std;
-/*
-void redirectRight(string cmd, string out) {
-    int fd = open(out.c_str(), O_CREAT | O_WRONLY | O_TRUNC | S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-    dup2(fd, 0);
-    //execute(cmd);
-
-}*/
-void redirectLeft() {}
-/*
-vector<string> splitString(string str, string delims) {
-    int c = 0;
-    bool insideQuotes = false;
-    bool inDelims = false;
-    int cursor = 0;
-    vector<string> output;
-    while (c < str.size()) {
-
-        if (!inDelims && isIn(str.at(c), delims)) {
-            string thing = str.substr(cursor, cursor-c);
-            inDelims = true;
-            c++;
-            while (c < str.size() && inDelims) {
-                if (isIn(str.at(c), delims)) {
-                    c++;
-                } else {
-
-                }
-            }
-        } else if (inDelims && isIn(str.at(c), delims)) {
-
-        }
-
-    }
-}*/
 
 vector<string> splitPipe(string str) {
     vector<string> outVec;
@@ -68,7 +34,48 @@ vector<string> splitPipe(string str) {
     return outVec;
 }
 
-vector<string> splitString(string str, string delim) {}
+string trimSpace(string str) {
+    return str.substr(str.find_first_not_of(" "), str.find_last_not_of(" ")+1);
+}
+
+vector<string> splitRedirs(string str) {
+    vector<string> outVec;
+    int cursor = str.size();
+    bool insideQt = false;
+    char curQt;
+    string charSel;
+    for (int i = str.size()-1; i >= 0; i--) {
+        if (str.at(i) == '\"' || str.at(i) == '\'') {
+            if (!insideQt) {
+                insideQt = true;
+                curQt = str.at(i);
+            } else if (insideQt && (curQt == str.at(i))) {
+                insideQt = false;
+            }
+            continue;
+        }
+
+        if (!insideQt) {
+            if (isIn(str.at(i), "<>")) {
+                cursor = i;
+                charSel = string(1, str.at(i));
+                break;
+            }
+        }
+    }
+    if (cursor == str.size()) {
+        return outVec;
+    }
+    if (cursor != str.size()) {
+        string left = trimSpace(str.substr(0, cursor-1));
+        string right = trimSpace(str.substr(cursor+1, str.size()-1-cursor));
+        outVec.push_back(charSel);
+        outVec.push_back(left);
+        outVec.push_back(right);
+    }
+    
+    return outVec;
+}
 
 vector<string> splitSpaces(string str) {
     vector<string> outVec;
@@ -80,16 +87,20 @@ vector<string> splitSpaces(string str) {
         if (isIn(str.at(i), "\"\'")) {
             if (inQuotes && (curQt == str.at(i))) {
                 inQuotes = false;
-                if (cur.size() != 0)
+                if (cur.size() != 0) {
                     outVec.push_back(cur);
+                    cur="";
+                }
                 cursor = i+1;
                 continue;
             } else if (!inQuotes) {
                 inQuotes = true;
                 curQt = str.at(i);
                 cursor = i + 1;
-                if (cur.size() != 0)
+                if (cur.size() != 0) {
                     outVec.push_back(cur);
+                    cur="";
+                }
                 continue;
             }
         }
@@ -140,49 +151,52 @@ bool isIn(char elem, string l) {
     }
     return false;
 }
-/*
-int performOp(string cmd, string arg, char op) {
-    if (op == '<')
-        return redirectLeft(cmd, arg);
-    else if (op == '>')
-        return redirectRight(cmd, arg);
-    else
-        return -1;
-}*/
-/*
-int execute(Metacmd c) {
-    if (c.parsedCmd.size() == 1) {
-        // regular execvp
-    }
-    for (int i = 0; i < c.parsedCmd.size(); i++) {
-        if (c.parsedCmd.at(i) == "|") {
-            Metacmd lhs, rhs;
-            lhs.parsedCmd = {c.parsedCmd.begin(), c.parsedCmd.begin() + i-1};
-            rhs.parsedCmd = {c.parsedCmd.begin()+i+1, c.parsedCmd.end()};
-            pipeCmds(execute(lhs), execute(rhs));
-            break;
-        }
 
-        if (isIn(c.parsedCmd.at(i), "<>")) {
-            // this is where i left off
-            
-        }
-    }
-    return 1;
-}*/
+bool isIn(int elem, const vector<int>& l) {
+    for (int i = 0; i < l.size(); i++)
+        if (elem == l.at(i)) return true;
+    return false;
+}
+
+void redirRight(string cmd, string out) {
+    int fd = open(out.c_str(), O_CREAT | O_WRONLY | O_TRUNC, 0777);//O_CREAT | O_WRONLY | O_TRUNC | S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+    dup2(fd, 1);
+    myExec(cmd);
+
+}
+
+void redirLeft(string cmd, string in) {
+    int fd = open(in.c_str(), O_RDONLY);
+    dup2(fd, 0);
+    myExec(cmd);
+}
 
 void myExec(string leCmd) {
+    vector<string> redirs = splitRedirs(leCmd);
+    if (redirs.size() != 0) {
+        if (redirs[0] == "<")
+            redirLeft(redirs[1], redirs[2]);
+        else
+            redirRight(redirs[1], redirs[2]);
+    }
     vector<string> spaces = splitSpaces(leCmd);
     vector<const char*> needThis;
     for (int i = 0; i < spaces.size(); i++) {
         needThis.push_back(spaces.at(i).c_str());
     }
     needThis.push_back(NULL);
-    execvp(needThis[0], (char *const *) &(needThis[0]));
+    if (execvp(needThis[0], (char *const *) &(needThis[0])) == -1) exit(0);
 }
 
-void processCommand(string comnd) {
-    vector<string> pipes = splitPipe(comnd);
+void processCommand(string comnd, vector<int>& bgprocess) {
+    string edcomnd = trimSpace(comnd);
+    bool runInBg = false;
+    if (comnd.at(comnd.size()-1) == '&') {
+        runInBg = true;
+        edcomnd = trimSpace(edcomnd.substr(0, edcomnd.size()-1));
+    }
+
+    vector<string> pipes = splitPipe(edcomnd);
     string curCmnd = pipes.at(0);
     for (int i = 0; i < pipes.size(); i++) {
         int fd[2];
@@ -194,18 +208,24 @@ void processCommand(string comnd) {
 
             myExec(pipes.at(i));
         } else {
-            if (i == pipes.size()-1) {
+            if (!runInBg && i == pipes.size()-1) {
                 waitpid(pid,0,0);
-            }
+            } else
+                bgprocess.push_back(pid);
             dup2(fd[0], 0);
             close(fd[1]);
         }
     }
 }
 
-
+/*
 int main() {
-    string test = "cat haha.txt | grep epic | grep is";
-    processCommand(test);
+    string test = "awk '{print $1$11}'<test.txt | head -10 | head -8 | head -7 | sort > output.txt";
+    vector<string> asdf = splitPipe(test);
+    for (int i = 0; i < asdf.size(); i++) {
+        cout << asdf.at(i) << endl;
+    }
+    vector<int> bg;
+    processCommand(test, bg);
     return 0;
-}
+}*/

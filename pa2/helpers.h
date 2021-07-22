@@ -10,22 +10,21 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <vector>
-//#include "Metacmd.h"
 
 using namespace std;
 using std::string;
 
-int redirectRight(string, string);
-int redirectLeft(string, string);
+void redirRight(string, string);
+void redirLeft(string, string);
 void pipeCmds(int, int);
-//int execute(Metacmd);
 vector<string> splitString(string, string);
 vector<string> splitSpaces(string);
-void processCommand(string);
+void processCommand(string, vector<int>&);
 void myExec(string);
 int* locateQuotes(string, int);
 template<typename T>
 vector<T> myUnion(vector<T>&, const vector<T>&);
 bool isIn(char, string);
+string trimSpace(string);
 
 #endif
