@@ -8,6 +8,13 @@ string trimSpace(string str) {
     return str.substr(str.find_first_not_of(" "), str.find_last_not_of(" ")+1);
 }
 
+string trimqt(string a) {
+    int firstDoubleQt = a.find_first_of("\"");
+    int lastDoubleQt = a.find_last_not_of("\"");
+    string trimmed = a.substr(firstDoubleQt, lastDoubleQt - firstDoubleQt-1);
+    return trimmed;
+}
+
 vector<string> splitPipe(string str) {
     vector<string> outVec;
     int cursor = 0;

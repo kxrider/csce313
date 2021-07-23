@@ -28,7 +28,10 @@ int main(){
     int stdInBackup = dup(0);
     int stdOutBackup = dup(1);
     vector<int> bgprocess;
-
+    string prevDir;
+    char tempidk[200];
+    getcwd(tempidk, 200);
+    prevDir = string(tempidk);
     // initial prompt
     char* user = initPrompt();
     string username(user);
@@ -73,6 +76,9 @@ int main(){
                 } else if (checkForCd.at(1).substr(0, 5) == "/home") {
                     chdir(checkForCd.at(1).c_str());
                     continue;
+                } else if (checkForCd.at(1) == "-") {
+                    chdir(prevDir.c_str());
+                    prevDir = dir;
                 }
             }
             
