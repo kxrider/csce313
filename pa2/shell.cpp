@@ -8,15 +8,8 @@
 #include <time.h>
 
 using namespace std;
-using namespace std::chrono;
-//using namespace date;
 
-int main(){
-    int stdInBackup = dup(0);
-    int stdOutBackup = dup(1);
-    vector<int> bgprocess;
-
-    // initial prompt
+char* initPrompt() {
     uid_t uid = getuid();
     passwd* pwd = getpwuid(uid);
     char* username = pwd->pw_name;
@@ -28,62 +21,67 @@ int main(){
 
     cout << "Welcome to the  h o w d y  shell, " << username << "!" << " The current time is " << actualTime << endl;
 
+    return username;
+}
 
-   /* string date;
-    int fdp[2];
-    pipe(fdp);
-    if (!fork()) {
+int main(){
+    int stdInBackup = dup(0);
+    int stdOutBackup = dup(1);
+    vector<int> bgprocess;
 
-    }
-    //auto t = zoned_time{current_zone(), system_clock::now()};
-    cout << system_clock << endl;*/
+    // initial prompt
+    char* user = initPrompt();
+    string username(user);
 
     while (true){
         
         dup2(stdInBackup, 0);
         dup2(stdOutBackup, 1);
 
+        // reaping child processes
         for (int i = 0; i < bgprocess.size(); i++) {
             int wstatus;
             int code = waitpid(bgprocess.at(i), &wstatus, WNOHANG);
             if (code != 0 && code != -1 && WIFEXITED(wstatus)) {
                 bgprocess.erase(bgprocess.begin() + i);
-                //printf("something erased\n");
             }
                 
         }
 
         char dir[200];
         getcwd(dir, 200);
-
         cout << dir << ": h o w d y >  "; // print a prompt
         string inputline;
         getline(cin, inputline);// get a line from standard input
 
         vector<string> checkForCd = splitSpaces(inputline);
 
+        if (inputline == "") continue;
+
         if (inputline == string("exit")){
-            cout << "Goodbye..." << endl;
+            cout << "T's & G's" << endl;
             break;
+        } else if (inputline == "prompt") {
+            initPrompt();
+            continue;
         }
         if (trimSpace(checkForCd.at(0)) == "cd") {
+            if (checkForCd.size() > 1) {
+                if (checkForCd.at(1).at(0) == '~') {
+                    chdir(("/home/" + username + checkForCd.at(1).substr(1, checkForCd.at(1).size()-1)).c_str());
+                    continue;
+                } else if (checkForCd.at(1).substr(0, 5) == "/home") {
+                    chdir(checkForCd.at(1).c_str());
+                    continue;
+                }
+            }
+            
             string newPath = string(dir) + "/" + trimSpace(checkForCd.at(1));
             chdir(newPath.c_str());
             continue;
         }
         if (inputline == "") continue;
         processCommand(inputline, bgprocess);
-
-        
-        /*
-        int pid = fork();
-        if (pid == 0){// child process
-            // preparing the input command for execution
-            char* args[] = {(char*) inputline.c_str(), nullptr};
-            execvp(args[0],args);
-        } else {
-            waitpid(pid, 0, 0); // parent waits for childprocess
-        }*/
     }
 
     return 0;

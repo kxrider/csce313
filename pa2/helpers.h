@@ -25,6 +25,7 @@ int* locateQuotes(string, int);
 template<typename T>
 vector<T> myUnion(vector<T>&, const vector<T>&);
 bool isIn(char, string);
+bool isIn(int, const vector<int>&);
 string trimSpace(string);
 
 #endif

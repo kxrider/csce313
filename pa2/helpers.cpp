@@ -4,6 +4,10 @@
 
 using namespace std;
 
+string trimSpace(string str) {
+    return str.substr(str.find_first_not_of(" "), str.find_last_not_of(" ")+1);
+}
+
 vector<string> splitPipe(string str) {
     vector<string> outVec;
     int cursor = 0;
@@ -23,19 +27,15 @@ vector<string> splitPipe(string str) {
 
         if (!insideQt) {
             if (str.at(i) == '|') {
-                outVec.push_back(str.substr(cursor, i-cursor));
+                outVec.push_back(trimSpace(str.substr(cursor, i-cursor)));
                 cursor = i+1;
             }
         }
     }
     if (str.size() - cursor > 0)
-        outVec.push_back(str.substr(cursor, str.size() - cursor));
+        outVec.push_back(trimSpace(str.substr(cursor, str.size() - cursor)));
     
     return outVec;
-}
-
-string trimSpace(string str) {
-    return str.substr(str.find_first_not_of(" "), str.find_last_not_of(" ")+1);
 }
 
 vector<string> splitRedirs(string str) {
@@ -69,9 +69,9 @@ vector<string> splitRedirs(string str) {
     if (cursor != str.size()) {
         string left = trimSpace(str.substr(0, cursor-1));
         string right = trimSpace(str.substr(cursor+1, str.size()-1-cursor));
-        outVec.push_back(charSel);
-        outVec.push_back(left);
-        outVec.push_back(right);
+        outVec.push_back(trimSpace(charSel));
+        outVec.push_back(trimSpace(left));
+        outVec.push_back(trimSpace(right));
     }
     
     return outVec;
@@ -112,38 +112,10 @@ vector<string> splitSpaces(string str) {
         }
     }
     if (cur.size() != 0) {
-        outVec.push_back(cur);
+        outVec.push_back(trimSpace(cur));
     }
     return outVec;
 }
-
-int* locateQuotes(string str, int start = 0) {
-    int qtct = 0;
-    static int bounds[2];
-    char curQt;
-    for (int i = start; i < str.size(); i++) {
-        if ((str.at(i) == '\"') || (str.at(i) == '\'')) {
-            if (qtct++==0) {
-                curQt = str.at(i);
-                bounds[0] = i;
-                continue;
-            }
-            if (str.at(i) == curQt) {
-                bounds[1] = i;
-                break;
-            }
-        }
-    }
-    return bounds;
-}
-
-template<typename T>
-void myUnion(vector<T> &l1, const vector<T> &l2) {
-    for (int i = 0; i < l2.size(); i++) {
-        l1.push_back(l2.at(i));
-    }
-}
-
 
 bool isIn(char elem, string l) {
     for (int i = 0; i < l.size(); i++) {
@@ -159,7 +131,7 @@ bool isIn(int elem, const vector<int>& l) {
 }
 
 void redirRight(string cmd, string out) {
-    int fd = open(out.c_str(), O_CREAT | O_WRONLY | O_TRUNC, 0777);//O_CREAT | O_WRONLY | O_TRUNC | S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+    int fd = open(out.c_str(), O_CREAT | O_WRONLY | O_TRUNC, O_CREAT | O_WRONLY | O_TRUNC | S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
     dup2(fd, 1);
     myExec(cmd);
 
@@ -206,7 +178,7 @@ void processCommand(string comnd, vector<int>& bgprocess) {
             if (i < pipes.size()-1)
                 dup2(fd[1], 1);
 
-            myExec(pipes.at(i));
+            myExec(trimSpace(pipes.at(i)));
         } else {
             if (!runInBg && i == pipes.size()-1) {
                 waitpid(pid,0,0);
@@ -220,12 +192,16 @@ void processCommand(string comnd, vector<int>& bgprocess) {
 
 /*
 int main() {
-    string test = "awk '{print $1$11}'<test.txt | head -10 | head -8 | head -7 | sort > output.txt";
+    string test = "cat < a | grep is";
     vector<string> asdf = splitPipe(test);
     for (int i = 0; i < asdf.size(); i++) {
         cout << asdf.at(i) << endl;
     }
-    vector<int> bg;
-    processCommand(test, bg);
+    vector<string> othertest = splitRedirs(asdf[0]);
+    for (int i = 0; i < othertest.size(); i++) {
+        cout << othertest.at(i) << endl;
+    }
+    //vector<int> bg;
+    //processCommand(test, bg);
     return 0;
 }*/
