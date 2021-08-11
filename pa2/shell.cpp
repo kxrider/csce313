@@ -72,18 +72,18 @@ int main(){
             if (checkForCd.size() > 1) {
                 if (checkForCd.at(1).at(0) == '~') {
                     chdir(("/home/" + username + checkForCd.at(1).substr(1, checkForCd.at(1).size()-1)).c_str());
-                    continue;
                 } else if (checkForCd.at(1).substr(0, 5) == "/home") {
                     chdir(checkForCd.at(1).c_str());
-                    continue;
                 } else if (checkForCd.at(1) == "-") {
                     chdir(prevDir.c_str());
-                    prevDir = dir;
+                    continue;
                 }
+                prevDir = dir;
             }
             
             string newPath = string(dir) + "/" + trimSpace(checkForCd.at(1));
             chdir(newPath.c_str());
+            prevDir = dir;
             continue;
         }
         if (inputline == "") continue;
