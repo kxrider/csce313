@@ -141,7 +141,7 @@ void handle_process_loop(TCPRequestChannel *channel){
 			break;
 		}else if (nbytes == 0){
 			// could not read anything in current iteration
-			cerr << "Could not read anything" << endl;
+			//cerr << "Could not read anything" << endl;
 			break;
 		}
 		MESSAGE_TYPE m = *(MESSAGE_TYPE *) buffer;
