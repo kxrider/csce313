@@ -66,7 +66,7 @@ TCPRequestChannel::TCPRequestChannel(const string host, const string port) {
 			exit(-1);
 		}
 		//
-		cout << "Connected " << endl;
+		//cout << "Connected " << endl;
 	}
 }
 

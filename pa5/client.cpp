@@ -187,6 +187,7 @@ int main(int argc, char *argv[])
     thread fileprint;
     thread patientprint;
 
+
     for (int i = 0; i < w; i++) {
         workers[i] = thread (worker_thread_function, &request_buffer, wchans[i], &response_buffer, m);
     }
@@ -214,6 +215,7 @@ int main(int argc, char *argv[])
         //fileprint.detach();
         filethread.join();
         //done = true;
+        
     }
     
     MESSAGE_TYPE q = QUIT_MSG;
